@@ -62,7 +62,7 @@ int main() {
     TRY("/usr/bin/ln -sf /etc/sv/rtkit /var/service");
 
     printf("installing kde6 (plasma), sddm...\n");
-    TRY("/usr/bin/xbps-install -y xorg-minimal kde-plasma-desktop kde-apps sddm");
+    TRY("/usr/bin/xbps-install -y xorg-minimal kde5 kde5-baseapps sddm");
 
     if (ask_user("install firefox?")) {
         TRY("/usr/bin/xbps-install -y firefox");
