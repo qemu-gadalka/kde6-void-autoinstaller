@@ -28,7 +28,7 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.tag.outputs.release_tag }}
-        name: "AVKI(${{ steps.tag.outputs.release_tag }})"
+        name: "AVKI (${{ steps.tag.outputs.release_tag }})"
         draft: false
         prerelease: false
         files: AVKI
