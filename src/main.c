@@ -117,6 +117,6 @@ int main() {
     printf("installing sddm symlink...\n");
     TRY("/usr/bin/ln -sf /etc/sv/sddm /var/service");
 
-    printf("installation finished successfully!\n");
+    printf("installation finished successfully!\nIf SDDM does not start, you can try rebooting.\n");
     return 0;
 }
