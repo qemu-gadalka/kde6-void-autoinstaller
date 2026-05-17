@@ -71,7 +71,8 @@ int main() {
     printf("detecting environment and video card...\n");
     TRY("/usr/bin/xbps-install -y pciutils");
 
-    int is_vm = (system("/usr/bin/dmesg | /usr/bin/grep -iq 'hypervisor\\|vmware\\|qemu\\|virtualbox'") == 0 ||
+    int is_vm = (system("/usr/bin/grep -iq 'hypervisor' /proc/cpuinfo 2>/dev/null") == 0 ||
+                 system("/usr/bin/grep -iq 'vmware\\|qemu\\|virtualbox' /sys/class/dmi/id/product_name 2>/dev/null") == 0 ||
                  system("/usr/bin/lspci | /usr/bin/grep -iq 'vmware\\|virtualbox\\|qemu'") == 0);
 
     int is_nvidia = 0;
@@ -116,5 +117,6 @@ int main() {
     printf("installing sddm symlink...\n");
     TRY("/usr/bin/ln -sf /etc/sv/sddm /var/service");
 
+    printf("installation finished successfully!\n");
     return 0;
 }
