@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 #define TRY(cmd) do { \
     if (system(cmd) != 0) { \
@@ -37,8 +38,16 @@ int main() {
     printf("installing xdg-user-dirs\n");
     TRY("/usr/bin/xbps-install -y xdg-user-dirs");
 
-    printf("updating xdg-user-dirs\n");
-    TRY("/usr/bin/xdg-user-dirs-update");
+    printf("updating xdg-user-dirs...\n");
+    
+    const char *sudo_user = getenv("SUDO_USER");
+    if (sudo_user && strcmp(sudo_user, "root") != 0) {
+        char xdg_cmd[256];
+        snprintf(xdg_cmd, sizeof(xdg_cmd), "sudo -u %s /usr/bin/xdg-user-dirs-update", sudo_user);
+        TRY(xdg_cmd);
+    } else {
+        TRY("/usr/bin/xdg-user-dirs-update");
+    }
 
     printf("installing xdg-utils, net-tools\n");
     TRY("/usr/bin/xbps-install -y xdg-utils net-tools");
@@ -52,40 +61,51 @@ int main() {
     TRY("/usr/bin/ln -sf /etc/sv/polkitd /var/service");
     TRY("/usr/bin/ln -sf /etc/sv/rtkit /var/service");
 
-    printf("installing kde6, sddm...\n");
-    TRY("/usr/bin/xbps-install -y xorg-minimal kde5 kde5-baseapps sddm");
+    printf("installing kde6 (plasma), sddm...\n");
+    TRY("/usr/bin/xbps-install -y xorg-minimal kde-plasma-desktop kde-apps sddm");
 
     if (ask_user("install firefox?")) {
         TRY("/usr/bin/xbps-install -y firefox");
     }
 
-    printf("detecting video card...\n");
+    printf("detecting environment and video card...\n");
     TRY("/usr/bin/xbps-install -y pciutils");
 
-    int is_nvidia = (system("/usr/bin/lspci | /usr/bin/grep -iq nvidia") == 0);
-    int is_intel  = (system("/usr/bin/lspci | /usr/bin/grep -iq intel") == 0);
-    int is_amd    = (system("/usr/bin/lspci | /usr/bin/grep -iq 'amd\\|ati'") == 0);
+    int is_vm = (system("/usr/bin/dmesg | /usr/bin/grep -iq 'hypervisor\\|vmware\\|qemu\\|virtualbox'") == 0 ||
+                 system("/usr/bin/lspci | /usr/bin/grep -iq 'vmware\\|virtualbox\\|qemu'") == 0);
 
-    if (is_nvidia) {
-        printf("detected NVIDIA GPU\n");
-        if (ask_user("install proprietary nvidia driver (nvidia)?")) {
-            TRY("/usr/bin/xbps-install -y nvidia");
-        } else if (ask_user("install opensource nvidia driver (nouveau)?")) {
-            TRY("/usr/bin/xbps-install -y nouveau");
+    int is_nvidia = 0;
+    int is_intel  = 0;
+    int is_amd    = 0;
+
+    if (!is_vm) {
+        is_nvidia = (system("/usr/bin/lspci | /usr/bin/grep -iq nvidia") == 0);
+        is_intel  = (system("/usr/bin/lspci | /usr/bin/grep -iq intel") == 0);
+        is_amd    = (system("/usr/bin/lspci | /usr/bin/grep -iq 'amd\\|ati'") == 0);
+
+        if (is_nvidia) {
+            printf("detected NVIDIA GPU\n");
+            if (ask_user("install proprietary nvidia driver (nvidia)?")) {
+                TRY("/usr/bin/xbps-install -y nvidia");
+            } else if (ask_user("install opensource nvidia driver (nouveau)?")) {
+                TRY("/usr/bin/xbps-install -y nouveau");
+            }
         }
+
+        if (is_intel) {
+            printf("detected Intel GPU\n");
+            TRY("/usr/bin/xbps-install -y linux-firmware-intel");
+        }
+
+        if (is_amd) {
+            printf("detected AMD GPU\n");
+            TRY("/usr/bin/xbps-install -y linux-firmware-amd");
+        }
+    } else {
+        printf("virtual environment detected, skipping physical GPU firmware.\n");
     }
 
-    if (is_intel) {
-        printf("detected Intel GPU\n");
-        TRY("/usr/bin/xbps-install -y linux-firmware-intel");
-    }
-
-    if (is_amd) {
-        printf("detected AMD GPU\n");
-        TRY("/usr/bin/xbps-install -y linux-firmware-amd");
-    }
-
-    if (is_intel || is_amd || is_nvidia) {
+    if (is_intel || is_amd || is_nvidia || is_vm) {
         TRY("/usr/bin/xbps-install -y mesa-dri");
     }
 
@@ -93,7 +113,7 @@ int main() {
         TRY("/usr/bin/xbps-install -y open-vm-tools && /usr/bin/ln -sf /etc/sv/vmtoolsd /var/service");
     }
 
-    printf("installing sddm symlink...");
+    printf("installing sddm symlink...\n");
     TRY("/usr/bin/ln -sf /etc/sv/sddm /var/service");
 
     return 0;
